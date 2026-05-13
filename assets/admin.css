@@ -1,0 +1,207 @@
+/* ═══════════════════════════════════════════════
+   RoxPay for WPForms — Admin Styles
+   ═══════════════════════════════════════════════ */
+
+/* ── Shared wrap ── */
+.roxpay-settings-wrap {
+	max-width: 860px;
+	margin-top: 16px;
+}
+.roxpay-txn-wrap {
+	max-width: 1200px;
+}
+
+/* ── Field groups (settings page cards) ── */
+.roxpay-field-group {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 20px 24px;
+	margin-bottom: 20px;
+}
+.roxpay-field-group h3 {
+	margin: 0 0 6px;
+	font-size: 15px;
+	color: #1d2327;
+}
+.roxpay-field-group > .description {
+	color: #646970;
+	font-size: 13px;
+	margin: 0 0 14px;
+}
+
+/* ── Test connection result ── */
+.roxpay-test-result {
+	display: inline-block;
+	margin-left: 12px;
+	font-weight: 600;
+	font-size: 13px;
+	vertical-align: middle;
+}
+.roxpay-test-result.success { color: #00a32a; }
+.roxpay-test-result.error   { color: #d63638; }
+
+/* ══════════════════════════════════════════
+   Webhook Management Panel
+   ══════════════════════════════════════════ */
+
+.roxpay-webhook-url-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin-bottom: 14px;
+	padding: 10px 14px;
+	background: #f6f7f7;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+}
+.roxpay-webhook-url-row code {
+	flex: 1;
+	min-width: 200px;
+	word-break: break-all;
+	font-size: 12px;
+	color: #2271b1;
+}
+
+.roxpay-webhook-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-bottom: 16px;
+}
+
+.roxpay-inline-msg {
+	font-size: 13px;
+	font-weight: 600;
+}
+.roxpay-inline-msg.success { color: #00a32a; }
+.roxpay-inline-msg.error   { color: #d63638; }
+
+.roxpay-hook-table { margin-top: 8px; }
+.roxpay-hook-url {
+	max-width: 300px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.roxpay-loading-hint {
+	color: #72777c;
+	font-style: italic;
+}
+.roxpay-error {
+	color: #d63638;
+	font-weight: 600;
+}
+
+#roxpay-deliveries-wrap {
+	margin-top: 20px;
+	padding: 16px;
+	background: #f6f7f7;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+}
+#roxpay-deliveries-wrap h4 { margin: 0 0 12px; }
+#roxpay-close-deliveries   { margin-top: 10px; }
+
+/* ══════════════════════════════════════════
+   Status Badges (shared by both pages)
+   ══════════════════════════════════════════ */
+
+.roxpay-badge {
+	display: inline-block;
+	padding: 2px 10px;
+	border-radius: 10px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.3px;
+}
+.roxpay-badge.active {
+	background: #edfaef;
+	color: #00a32a;
+	border: 1px solid #b3dfb9;
+}
+.roxpay-badge.pending {
+	background: #fcf9e8;
+	color: #996800;
+	border: 1px solid #f0d648;
+}
+.roxpay-badge.inactive {
+	background: #fcf0f1;
+	color: #d63638;
+	border: 1px solid #f5c0c0;
+}
+
+/* ══════════════════════════════════════════
+   Transactions / Payments Page
+   ══════════════════════════════════════════ */
+
+/* Summary cards */
+.roxpay-summary-cards {
+	display: flex;
+	gap: 16px;
+	flex-wrap: wrap;
+	margin: 16px 0 24px;
+}
+.roxpay-card {
+	flex: 1;
+	min-width: 140px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 6px;
+	padding: 18px 20px;
+	text-align: center;
+	border-top: 4px solid #2271b1;
+}
+.roxpay-card.warning { border-top-color: #dba617; }
+.roxpay-card.danger  { border-top-color: #d63638; }
+.roxpay-card-value {
+	display: block;
+	font-size: 28px;
+	font-weight: 700;
+	color: #1d2327;
+	line-height: 1.1;
+}
+.roxpay-card-label {
+	display: block;
+	font-size: 11px;
+	color: #72777c;
+	margin-top: 4px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+/* Payments table */
+.roxpay-payments-table th,
+.roxpay-payments-table td { vertical-align: middle; }
+.roxpay-muted { color: #aaa; }
+
+/* Field snapshot modal */
+#roxpay-snapshot-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 100000;
+}
+#roxpay-snapshot-overlay {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, .55);
+}
+#roxpay-snapshot-dialog {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	background: #fff;
+	border-radius: 8px;
+	padding: 28px 32px;
+	width: 600px;
+	max-width: 95vw;
+	max-height: 80vh;
+	overflow-y: auto;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, .25);
+	z-index: 1;
+}
+#roxpay-snapshot-dialog h2 { margin: 0 0 16px; font-size: 16px; }
