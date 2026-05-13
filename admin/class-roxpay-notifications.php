@@ -23,7 +23,7 @@ class RoxPay_Notifications {
 	// -------------------------------------------------------------------------
 
 	public function on_completed( $entry_id, $transaction_id, $webhook_data ) {
-		$record   = RoxPay_DB::get_by_entry( $entry_id );
+		$record   = RoxPay_DB::get_by_txn_id( $transaction_id );
 		$amount   = (int) ( $webhook_data['Amount']   ?? $record['amount']   ?? 0 );
 		$currency = sanitize_text_field( $webhook_data['Currency'] ?? $record['currency'] ?? 'EUR' );
 
@@ -39,7 +39,7 @@ class RoxPay_Notifications {
 	}
 
 	public function on_failed( $entry_id, $transaction_id ) {
-		$record  = RoxPay_DB::get_by_entry( $entry_id );
+		$record  = RoxPay_DB::get_by_txn_id( $transaction_id );
 		$subject = sprintf(
 			'[%s] %s — Entry #%d',
 			get_bloginfo( 'name' ),
@@ -126,9 +126,13 @@ class RoxPay_Notifications {
 		<td style="padding:24px 32px;">
 			<h2 style="font-size:15px;color:#333;margin:0 0 12px;"><?php esc_html_e( 'Payment Details', 'roxpay-wpforms' ); ?></h2>
 			<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e5e5;border-radius:4px;">
-				<tr><td style="padding:8px 12px;font-weight:600;color:#555;border-bottom:1px solid #eee;width:40%;"><?php esc_html_e( 'Entry ID', 'roxpay-wpforms' ); ?></td><td style="padding:8px 12px;color:#333;border-bottom:1px solid #eee;">#<?php echo (int) $entry_id; ?></td></tr>
-				<tr><td style="padding:8px 12px;font-weight:600;color:#555;border-bottom:1px solid #eee;"><?php esc_html_e( 'Form', 'roxpay-wpforms' ); ?></td><td style="padding:8px 12px;color:#333;border-bottom:1px solid #eee;"><?php echo esc_html( $form_name ); ?></td></tr>
-				<tr><td style="padding:8px 12px;font-weight:600;color:#555;border-bottom:1px solid #eee;"><?php esc_html_e( 'RoxPay Transaction ID', 'roxpay-wpforms' ); ?></td><td style="padding:8px 12px;color:#333;border-bottom:1px solid #eee;font-family:monospace;"><?php echo esc_html( $transaction_id ?: '—' ); ?></td></tr>
+				<?php if ( (int) $entry_id > 0 ) : ?>
+					<tr><td style="padding:8px 12px;font-weight:600;color:#555;border-bottom:1px solid #eee;width:40%;"><?php esc_html_e( 'Entry ID', 'roxpay-wpforms' ); ?></td><td style="padding:8px 12px;color:#333;border-bottom:1px solid #eee;">#<?php echo (int) $entry_id; ?></td></tr>
+					<tr><td style="padding:8px 12px;font-weight:600;color:#555;border-bottom:1px solid #eee;"><?php esc_html_e( 'Form', 'roxpay-wpforms' ); ?></td><td style="padding:8px 12px;color:#333;border-bottom:1px solid #eee;"><?php echo esc_html( $form_name ); ?></td></tr>
+				<?php else : ?>
+					<tr><td style="padding:8px 12px;font-weight:600;color:#555;border-bottom:1px solid #eee;width:40%;"><?php esc_html_e( 'Source', 'roxpay-wpforms' ); ?></td><td style="padding:8px 12px;color:#333;border-bottom:1px solid #eee;"><?php esc_html_e( 'Digital Arrival Form', 'roxpay-wpforms' ); ?></td></tr>
+				<?php endif; ?>
+				<tr><td style="padding:8px 12px;font-weight:600;color:#555;border-bottom:1px solid #eee;width:40%;"><?php esc_html_e( 'RoxPay Transaction ID', 'roxpay-wpforms' ); ?></td><td style="padding:8px 12px;color:#333;border-bottom:1px solid #eee;font-family:monospace;"><?php echo esc_html( $transaction_id ?: '—' ); ?></td></tr>
 				<tr><td style="padding:8px 12px;font-weight:600;color:#555;border-bottom:1px solid #eee;"><?php esc_html_e( 'Internal Reference', 'roxpay-wpforms' ); ?></td><td style="padding:8px 12px;color:#333;border-bottom:1px solid #eee;font-family:monospace;"><?php echo esc_html( $record['internal_txn_id'] ?? '—' ); ?></td></tr>
 				<tr><td style="padding:8px 12px;font-weight:600;color:#555;"><?php esc_html_e( 'Date', 'roxpay-wpforms' ); ?></td><td style="padding:8px 12px;color:#333;"><?php echo esc_html( $date_fmt ); ?></td></tr>
 			</table>
@@ -150,8 +154,10 @@ class RoxPay_Notifications {
 	<!-- Action buttons -->
 	<tr>
 		<td style="padding:0 32px 28px;">
-			<a href="<?php echo esc_url( $entry_url ); ?>" style="display:inline-block;background:#2271b1;color:#fff;padding:10px 20px;border-radius:4px;text-decoration:none;font-size:13px;margin-right:10px;"><?php esc_html_e( 'View Entry in WPForms', 'roxpay-wpforms' ); ?></a>
-			<a href="<?php echo esc_url( $txn_url ); ?>" style="display:inline-block;background:#f6f7f7;color:#333;padding:10px 20px;border-radius:4px;text-decoration:none;font-size:13px;border:1px solid #ddd;"><?php esc_html_e( 'View All Payments', 'roxpay-wpforms' ); ?></a>
+			<?php if ( (int) $entry_id > 0 ) : ?>
+				<a href="<?php echo esc_url( $entry_url ); ?>" style="display:inline-block;background:#2271b1;color:#fff;padding:10px 20px;border-radius:4px;text-decoration:none;font-size:13px;margin-right:10px;"><?php esc_html_e( 'View Entry in WPForms', 'roxpay-wpforms' ); ?></a>
+			<?php endif; ?>
+			<a href="<?php echo esc_url( $txn_url ); ?>" style="display:inline-block;background:#f6f7f7;color:#333;padding:10px 20px;border-radius:4px;text-decoration:none;font-size:13px;border:1px solid #ddd;"><?php esc_html_e( 'View All Bookings', 'roxpay-wpforms' ); ?></a>
 		</td>
 	</tr>
 

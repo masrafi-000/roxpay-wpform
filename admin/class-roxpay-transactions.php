@@ -16,10 +16,22 @@ class RoxPay_Transactions {
 	}
 
 	public function register_menu() {
+		// Main Top-Level Menu
+		add_menu_page(
+			esc_html__( 'RoxPay', 'roxpay-wpforms' ),
+			esc_html__( 'RoxPay', 'roxpay-wpforms' ),
+			'manage_options',
+			'roxpay-payments',
+			[ $this, 'render_page' ],
+			'dashicons-credit-card',
+			58 // Position it near WPForms
+		);
+
+		// Submenu: Payments (defaults to same as main)
 		add_submenu_page(
-			'wpforms-overview',
-			esc_html__( 'RoxPay Payments', 'roxpay-wpforms' ),
-			esc_html__( 'RoxPay Payments', 'roxpay-wpforms' ),
+			'roxpay-payments',
+			esc_html__( 'All Payments', 'roxpay-wpforms' ),
+			esc_html__( 'All Payments', 'roxpay-wpforms' ),
 			'manage_options',
 			'roxpay-payments',
 			[ $this, 'render_page' ]
@@ -97,20 +109,21 @@ class RoxPay_Transactions {
 				<thead>
 					<tr>
 						<th style="width:40px"><?php esc_html_e( '#', 'roxpay-wpforms' ); ?></th>
+						<th><?php esc_html_e( 'Source', 'roxpay-wpforms' ); ?></th>
 						<th><?php esc_html_e( 'Entry', 'roxpay-wpforms' ); ?></th>
-						<th><?php esc_html_e( 'Form', 'roxpay-wpforms' ); ?></th>
+						<th><?php esc_html_e( 'Form Name', 'roxpay-wpforms' ); ?></th>
 						<th><?php esc_html_e( 'Amount', 'roxpay-wpforms' ); ?></th>
-						<th><?php esc_html_e( 'RoxPay Transaction ID', 'roxpay-wpforms' ); ?></th>
+						<th><?php esc_html_e( 'RoxPay ID', 'roxpay-wpforms' ); ?></th>
 						<th><?php esc_html_e( 'Internal Ref', 'roxpay-wpforms' ); ?></th>
 						<th><?php esc_html_e( 'Status', 'roxpay-wpforms' ); ?></th>
-						<th><?php esc_html_e( 'Date (UTC)', 'roxpay-wpforms' ); ?></th>
-						<th><?php esc_html_e( 'Details', 'roxpay-wpforms' ); ?></th>
+						<th><?php esc_html_e( 'Date', 'roxpay-wpforms' ); ?></th>
+						<th><?php esc_html_e( 'Data', 'roxpay-wpforms' ); ?></th>
 					</tr>
 				</thead>
 				<tbody>
 					<?php if ( empty( $payments ) ) : ?>
 						<tr>
-							<td colspan="9" style="text-align:center;padding:30px 0;">
+							<td colspan="10" style="text-align:center;padding:30px 0;">
 								<?php esc_html_e( 'No payment records found.', 'roxpay-wpforms' ); ?>
 							</td>
 						</tr>
@@ -124,8 +137,12 @@ class RoxPay_Transactions {
 								$form = wpforms()->form->get( (int) $p['form_id'] );
 								$form_name = $form ? esc_html( $form->post_title ) : '#' . absint( $p['form_id'] );
 							} else {
-								$form_name = '<em>' . esc_html__( 'Custom Form', 'roxpay-wpforms' ) . '</em>';
+								$form_name = '<em>' . esc_html__( 'Digital Arrival Form', 'roxpay-wpforms' ) . '</em>';
 							}
+
+							$source_badge = $is_wpf 
+								? '<span class="roxpay-badge" style="background:#e8f5fb;color:#0366d6;">WPForms</span>' 
+								: '<span class="roxpay-badge" style="background:#f1f8e9;color:#2e7d32;">Direct</span>';
 
 							$amount    = (int) $p['amount'] > 0
 								? esc_html( $p['currency'] ) . ' ' . number_format( $p['amount'] / 100, 2 )
@@ -134,6 +151,7 @@ class RoxPay_Transactions {
 						?>
 						<tr>
 							<td><?php echo absint( $p['id'] ); ?></td>
+							<td><?php echo $source_badge; // phpcs:ignore ?></td>
 							<td>
 								<?php if ( $is_wpf ) : ?>
 									<a href="<?php echo esc_url( $entry_url ); ?>">#<?php echo absint( $p['entry_id'] ); ?></a>
@@ -145,8 +163,7 @@ class RoxPay_Transactions {
 							<td><strong><?php echo esc_html( $amount ); ?></strong></td>
 							<td><?php echo ! empty( $p['transaction_id'] )
 								? '<code>' . esc_html( $p['transaction_id'] ) . '</code>'
-								: '<span class="roxpay-muted">—</span>'; ?>
-							</td>
+								: '<span class="roxpay-muted">—</span>'; ?></td>
 							<td><small><?php echo esc_html( $p['internal_txn_id'] ?: '—' ); ?></small></td>
 							<td><?php echo $this->status_badge( $p['status'] ); // phpcs:ignore ?></td>
 							<td><small><?php echo esc_html( $p['created_at'] ); ?></small></td>

@@ -14,11 +14,10 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class RoxPay_Settings {
 
 	public function __construct() {
-		add_filter( 'wpforms_settings_tabs',             [ $this, 'register_tab' ] );
-		add_action( 'wpforms_settings_init',             [ $this, 'render_fields' ] );
-		add_action( 'wpforms_settings_save',             [ $this, 'save_settings' ] );
+		add_action( 'admin_menu',                        [ $this, 'register_submenu' ], 20 ); // Priority 20 to run AFTER main menu
 		add_action( 'admin_enqueue_scripts',             [ $this, 'enqueue_assets' ] );
 		add_action( 'admin_post_roxpay_test_connection', [ $this, 'handle_test_connection' ] );
+		add_action( 'admin_post_roxpay_save_standalone', [ $this, 'handle_standalone_save' ] );
 		// Webhook management AJAX.
 		add_action( 'wp_ajax_roxpay_load_webhooks',    [ $this, 'ajax_load_webhooks' ] );
 		add_action( 'wp_ajax_roxpay_register_webhook', [ $this, 'ajax_register_webhook' ] );
@@ -26,17 +25,37 @@ class RoxPay_Settings {
 		add_action( 'wp_ajax_roxpay_load_deliveries',  [ $this, 'ajax_load_deliveries' ] );
 	}
 
-	// -------------------------------------------------------------------------
-	// Tab registration
-	// -------------------------------------------------------------------------
+	public function register_submenu() {
+		add_submenu_page(
+			'roxpay-payments',
+			esc_html__( 'Settings', 'roxpay-wpforms' ),
+			esc_html__( 'Settings', 'roxpay-wpforms' ),
+			'manage_options',
+			'roxpay-settings',
+			[ $this, 'render_standalone_page' ]
+		);
+	}
 
-	public function register_tab( $tabs ) {
-		$tabs['roxpay'] = [
-			'name'   => esc_html__( 'RoxPay', 'roxpay-wpforms' ),
-			'title'  => esc_html__( 'RoxPay Payment Gateway', 'roxpay-wpforms' ),
-			'fields' => [],
-		];
-		return $tabs;
+	public function render_standalone_page() {
+		$saved = isset( $_GET['saved'] ) && $_GET['saved'] === '1';
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'RoxPay Settings', 'roxpay-wpforms' ); ?></h1>
+			
+			<?php if ( $saved ) : ?>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Settings saved successfully.', 'roxpay-wpforms' ); ?></p></div>
+			<?php endif; ?>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<?php wp_nonce_field( 'roxpay_standalone_settings', 'roxpay_standalone_nonce' ); ?>
+				<input type="hidden" name="action" value="roxpay_save_standalone">
+				<?php $this->render_fields( null ); ?>
+				<p class="submit">
+					<input type="submit" name="submit" id="submit" class="button button-primary" value="<?php esc_attr_e( 'Save Settings', 'roxpay-wpforms' ); ?>">
+				</p>
+			</form>
+		</div>
+		<?php
 	}
 
 	// -------------------------------------------------------------------------
@@ -44,7 +63,11 @@ class RoxPay_Settings {
 	// -------------------------------------------------------------------------
 
 	public function render_fields( $instance ) {
-		if ( ! isset( $_GET['view'] ) || 'roxpay' !== $_GET['view'] ) {
+		// Render if we are on the WPForms tab OR the standalone page
+		$is_wpf_tab    = ( isset( $_GET['page'] ) && $_GET['page'] === 'wpforms-settings' && isset( $_GET['view'] ) && $_GET['view'] === 'roxpay' );
+		$is_standalone = ( isset( $_GET['page'] ) && $_GET['page'] === 'roxpay-settings' );
+
+		if ( ! $is_wpf_tab && ! $is_standalone ) {
 			return;
 		}
 
@@ -109,18 +132,17 @@ class RoxPay_Settings {
 			<?php /* ── Test Connection ── */ ?>
 			<div class="roxpay-field-group">
 				<h3><?php esc_html_e( 'Test Connection', 'roxpay-wpforms' ); ?></h3>
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<?php wp_nonce_field( 'roxpay_test_connection', 'roxpay_test_nonce' ); ?>
-					<input type="hidden" name="action" value="roxpay_test_connection">
-					<button type="submit" class="button">
+				<div class="roxpay-test-connection-row">
+					<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=roxpay_test_connection' ), 'roxpay_test_connection', 'roxpay_test_nonce' ) ); ?>" class="button">
 						<?php esc_html_e( 'Test API Connection', 'roxpay-wpforms' ); ?>
-					</button>
+					</a>
+
 					<?php if ( $test_result === 'success' ) : ?>
 						<span class="roxpay-test-result success"><?php esc_html_e( '✓ Connection successful!', 'roxpay-wpforms' ); ?></span>
 					<?php elseif ( ! empty( $test_result ) && str_starts_with( $test_result, 'error:' ) ) : ?>
-						<span class="roxpay-test-result error"><?php echo esc_html( substr( $test_result, 6 ) ); ?></span>
+						<span class="roxpay-test-result error"><?php echo esc_html( substr( $test_result, 7 ) ); ?></span>
 					<?php endif; ?>
-				</form>
+				</div>
 			</div>
 
 			<hr>
@@ -285,11 +307,13 @@ class RoxPay_Settings {
 	// Save
 	// -------------------------------------------------------------------------
 
-	public function save_settings() {
+	public function save_settings( $skip_nonce = false ) {
 		if ( ! isset( $_POST['roxpay_settings'] ) ) {
 			return;
 		}
-		check_admin_referer( 'wpforms-settings' );
+		if ( ! $skip_nonce ) {
+			check_admin_referer( 'wpforms-settings' );
+		}
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'Unauthorized', 'roxpay-wpforms' ) );
 		}
@@ -337,7 +361,27 @@ class RoxPay_Settings {
 			set_transient( 'roxpay_test_result', 'success', 120 );
 		}
 
-		wp_safe_redirect( add_query_arg( [ 'page' => 'wpforms-settings', 'view' => 'roxpay' ], admin_url( 'admin.php' ) ) );
+		// Redirect back to wherever we came from
+		$url = wp_get_referer();
+		if ( ! $url || strpos( $url, 'roxpay' ) === false ) {
+			$url = add_query_arg( [ 'page' => 'roxpay-settings' ], admin_url( 'admin.php' ) );
+		}
+		
+		wp_safe_redirect( $url );
+		exit;
+	}
+
+	public function handle_standalone_save() {
+		if ( ! check_admin_referer( 'roxpay_standalone_settings', 'roxpay_standalone_nonce' ) ) {
+			wp_die( esc_html__( 'Security check failed.', 'roxpay-wpforms' ) );
+		}
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized', 'roxpay-wpforms' ) );
+		}
+
+		$this->save_settings( true ); // skip wpforms nonce
+
+		wp_safe_redirect( add_query_arg( [ 'page' => 'roxpay-settings', 'saved' => '1' ], admin_url( 'admin.php' ) ) );
 		exit;
 	}
 
@@ -346,10 +390,12 @@ class RoxPay_Settings {
 	// -------------------------------------------------------------------------
 
 	public function enqueue_assets( $hook ) {
-		if ( strpos( $hook, 'wpforms-settings' ) === false ) {
+		$allowed = [ 'wpforms_page_wpforms-settings', 'toplevel_page_roxpay-payments', 'roxpay_page_roxpay-settings' ];
+		if ( ! in_array( $hook, $allowed, true ) ) {
 			return;
 		}
-		if ( isset( $_GET['view'] ) && $_GET['view'] === 'roxpay' ) {
+
+		if ( ( isset( $_GET['view'] ) && $_GET['view'] === 'roxpay' ) || strpos( $hook, 'roxpay' ) !== false ) {
 			wp_enqueue_style( 'roxpay-admin-style', ROXPAY_WPFORMS_URL . 'assets/admin.css', [], ROXPAY_WPFORMS_VERSION );
 		}
 	}

@@ -38,27 +38,29 @@ function roxpay_wpforms_maybe_upgrade_db() {
 add_action( 'plugins_loaded', 'roxpay_wpforms_maybe_upgrade_db', 5 );
 
 /**
- * Boot all plugin classes after WPForms is available.
+ * Boot all plugin classes.
  */
 function roxpay_wpforms_init() {
-	if ( ! function_exists( 'wpforms' ) ) {
-		add_action( 'admin_notices', 'roxpay_wpforms_missing_notice' );
-		return;
-	}
-
+	// Core RoxPay functionality (API, Auth, Webhook, Settings, Dashboard)
 	require_once ROXPAY_WPFORMS_DIR . 'includes/class-roxpay-auth.php';
 	require_once ROXPAY_WPFORMS_DIR . 'includes/class-roxpay-api.php';
-	require_once ROXPAY_WPFORMS_DIR . 'includes/class-roxpay-payment.php';
 	require_once ROXPAY_WPFORMS_DIR . 'includes/class-roxpay-webhook.php';
 	require_once ROXPAY_WPFORMS_DIR . 'admin/class-roxpay-settings.php';
 	require_once ROXPAY_WPFORMS_DIR . 'admin/class-roxpay-transactions.php';
 	require_once ROXPAY_WPFORMS_DIR . 'admin/class-roxpay-notifications.php';
 
-	new RoxPay_Settings();
-	new RoxPay_WPForms_Payment();
-	new RoxPay_Webhook();
 	new RoxPay_Transactions();
+	new RoxPay_Settings();
+	new RoxPay_Webhook();
 	new RoxPay_Notifications();
+
+	// WPForms Specific Integration
+	if ( function_exists( 'wpforms' ) ) {
+		require_once ROXPAY_WPFORMS_DIR . 'includes/class-roxpay-payment.php';
+		new RoxPay_WPForms_Payment();
+	} else {
+		add_action( 'admin_notices', 'roxpay_wpforms_missing_notice' );
+	}
 }
 add_action( 'plugins_loaded', 'roxpay_wpforms_init', 20 );
 
@@ -67,8 +69,8 @@ add_action( 'plugins_loaded', 'roxpay_wpforms_init', 20 );
  */
 function roxpay_wpforms_missing_notice() {
 	printf(
-		'<div class="notice notice-error is-dismissible"><p>%s</p></div>',
-		esc_html__( 'RoxPay for WPForms requires WPForms to be installed and activated.', 'roxpay-wpforms' )
+		'<div class="notice notice-warning is-dismissible"><p>%s</p></div>',
+		esc_html__( 'RoxPay: WPForms is not active. The custom Digital Arrival Form will still work, but WPForms payment integration is disabled.', 'roxpay-wpforms' )
 	);
 }
 
@@ -179,12 +181,26 @@ function tdaf_handle_form_submission() {
     // Log to shared DB
     if ( class_exists( 'RoxPay_DB' ) ) {
         $snapshot = [
-            [ 'name' => 'Full Name', 'value' => "$first_name $last_name" ],
-            [ 'name' => 'Email',     'value' => sanitize_email( $data['email'] ?? '' ) ],
-            [ 'name' => 'Arrival',   'value' => sanitize_text_field( $data['arrival_date'] ?? '' ) ],
-            [ 'name' => 'Passport',  'value' => sanitize_text_field( $data['passport_no'] ?? '' ) ],
-            [ 'name' => 'Service',   'value' => $desc ],
+            [ 'name' => 'Full Name',          'value' => "$first_name $last_name" ],
+            [ 'name' => 'Email',              'value' => sanitize_email( $data['email'] ?? '' ) ],
+            [ 'name' => 'Phone',              'value' => sanitize_text_field( $data['phone'] ?? '' ) ],
+            [ 'name' => 'Passport',           'value' => sanitize_text_field( $data['passport_no'] ?? '' ) ],
+            [ 'name' => 'Arrival',            'value' => sanitize_text_field( $data['arrival_date'] ?? '' ) ],
+            [ 'name' => 'Flight Number',      'value' => sanitize_text_field( $data['flight_number'] ?? '' ) ],
+            [ 'name' => 'Departure Country',  'value' => sanitize_text_field( $data['departure_country'] ?? '' ) ],
+            [ 'name' => 'Purpose',            'value' => sanitize_text_field( $data['purpose'] ?? '' ) ],
+            [ 'name' => 'Hotel/Address',      'value' => sanitize_textarea_field( $data['hotel_address'] ?? '' ) . ' (' . sanitize_text_field( $data['hotel_province'] ?? '' ) . ')' ],
+            [ 'name' => 'Selected Plan',      'value' => $desc ],
         ];
+
+        // Add additional travelers if any
+        if ( ! empty( $travelers ) ) {
+            foreach ( $travelers as $i => $t ) {
+                $num = $i + 2;
+                $t_name = sanitize_text_field( ($t['first_name'] ?? '') . ' ' . ($t['last_name'] ?? '') );
+                $snapshot[] = [ 'name' => "Traveler $num", 'value' => "$t_name (Passport: " . sanitize_text_field($t['passport'] ?? '—') . ")" ];
+            }
+        }
 
         RoxPay_DB::insert( [
             'entry_id'        => 0, 

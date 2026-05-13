@@ -46,7 +46,7 @@ class RoxPay_Auth {
 	 * @return string
 	 */
 	public function get_base_url() {
-		return 'https://api.roxpay.com/api/v4';
+		return 'https://app.roxpay.eu/api/v4';
 	}
 
 	/**
@@ -79,20 +79,22 @@ class RoxPay_Auth {
 
 		$url      = $this->get_base_url() . '/auth/token';
 		$response = wp_remote_post( $url, [
-			'timeout' => 20,
-			'headers' => [
+			'timeout'   => 20,
+			'sslverify' => ! ( strpos( home_url(), 'localhost' ) !== false ),
+			'headers'   => [
 				'Content-Type' => 'application/json',
 				'Accept'       => 'application/json',
 			],
-			'body'    => wp_json_encode( [
+			'body'      => wp_json_encode( [
 				'Username' => $username,
 				'Password' => $password,
 			] ),
 		] );
 
 		if ( is_wp_error( $response ) ) {
-			error_log( '[RoxPay WPForms] Auth request failed: ' . $response->get_error_message() );
-			return new WP_Error( 'roxpay_auth_failed', esc_html__( 'Could not connect to RoxPay.', 'roxpay-wpforms' ) );
+			$err_msg = $response->get_error_message();
+			error_log( '[RoxPay WPForms] Auth request failed: ' . $err_msg );
+			return new WP_Error( 'roxpay_auth_failed', esc_html__( 'Could not connect to RoxPay: ', 'roxpay-wpforms' ) . esc_html( $err_msg ) );
 		}
 
 		$http_code = wp_remote_retrieve_response_code( $response );

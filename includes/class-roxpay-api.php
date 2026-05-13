@@ -71,9 +71,10 @@ class RoxPay_API {
 		}
 
 		$args = [
-			'method'  => strtoupper( $method ),
-			'timeout' => $timeout,
-			'headers' => $headers,
+			'method'    => strtoupper( $method ),
+			'timeout'   => $timeout,
+			'sslverify' => ! ( strpos( home_url(), 'localhost' ) !== false ),
+			'headers'   => $headers,
 		];
 
 		if ( in_array( strtoupper( $method ), [ 'POST', 'PUT' ], true ) && ! empty( $body ) ) {
@@ -83,8 +84,7 @@ class RoxPay_API {
 		$response = wp_remote_request( $url, $args );
 
 		if ( is_wp_error( $response ) ) {
-			error_log( '[RoxPay WPForms] ' . $method . ' ' . $path . ' failed: ' . $response->get_error_message() );
-			return new WP_Error( 'roxpay_request_failed', esc_html__( 'Could not connect to RoxPay.', 'roxpay-wpforms' ) );
+			return new WP_Error( 'roxpay_api_error', esc_html__( 'Could not connect to RoxPay API: ', 'roxpay-wpforms' ) . $response->get_error_message() );
 		}
 
 		$code     = wp_remote_retrieve_response_code( $response );
