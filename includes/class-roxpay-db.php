@@ -100,33 +100,42 @@ class RoxPay_DB {
 	}
 
 	/**
-	 * Update status (and optionally the RoxPay TransactionId) for an entry_id.
+	 * Update status for a specific RoxPay transaction.
 	 *
-	 * @param int    $entry_id
+	 * @param string $transaction_id RoxPay Transaction ID.
 	 * @param string $status         'pending' | 'completed' | 'failed'
-	 * @param string $transaction_id Optional RoxPay TransactionId.
 	 * @return int|false Rows affected or false.
 	 */
-	public static function update_status( $entry_id, $status, $transaction_id = '' ) {
+	public static function update_status( $transaction_id, $status ) {
 		global $wpdb;
 
-		$data = [
-			'status'     => sanitize_text_field( $status ),
-			'updated_at' => current_time( 'mysql', true ),
-		];
-		$formats = [ '%s', '%s' ];
-
-		if ( ! empty( $transaction_id ) ) {
-			$data['transaction_id'] = sanitize_text_field( $transaction_id );
-			$formats[]              = '%s';
+		if ( empty( $transaction_id ) ) {
+			return false;
 		}
 
 		return $wpdb->update(
 			self::table(),
-			$data,
-			[ 'entry_id' => absint( $entry_id ) ],
-			$formats,
-			[ '%d' ]
+			[
+				'status'     => sanitize_text_field( $status ),
+				'updated_at' => current_time( 'mysql', true ),
+			],
+			[ 'transaction_id' => sanitize_text_field( $transaction_id ) ],
+			[ '%s', '%s' ],
+			[ '%s' ]
+		);
+	}
+
+	/**
+	 * Get a single record by RoxPay Transaction ID.
+	 *
+	 * @param string $transaction_id
+	 * @return array|null
+	 */
+	public static function get_by_txn_id( $transaction_id ) {
+		global $wpdb;
+		return $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM " . self::table() . " WHERE transaction_id = %s", $transaction_id ),
+			ARRAY_A
 		);
 	}
 
@@ -138,6 +147,7 @@ class RoxPay_DB {
 	 */
 	public static function get_by_entry( $entry_id ) {
 		global $wpdb;
+		if ( ! $entry_id ) return null;
 		return $wpdb->get_row(
 			$wpdb->prepare(
 				'SELECT * FROM ' . self::table() . ' WHERE entry_id = %d LIMIT 1',

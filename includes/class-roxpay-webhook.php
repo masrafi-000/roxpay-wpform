@@ -81,16 +81,16 @@ class RoxPay_Webhook {
 			$roxpay_txn_id, $status, $entry_id
 		) );
 
-		if ( empty( $roxpay_txn_id ) || empty( $status ) || empty( $entry_id ) ) {
+		if ( empty( $roxpay_txn_id ) || empty( $status ) ) {
 			error_log( '[RoxPay WPForms] Webhook: missing required fields.' );
 			return new WP_REST_Response( [ 'error' => 'Missing fields' ], 400 );
 		}
 
 		// ---- Dispatch ----
 		if ( $this->is_success( $status ) ) {
-			$this->mark_completed( $entry_id, $roxpay_txn_id, $data );
+			$this->mark_completed( $roxpay_txn_id, $data, $entry_id );
 		} elseif ( $this->is_failed( $status ) ) {
-			$this->mark_failed( $entry_id, $roxpay_txn_id );
+			$this->mark_failed( $roxpay_txn_id, $entry_id );
 		} else {
 			error_log( '[RoxPay WPForms] Webhook: unhandled status "' . $status . '"' );
 		}
@@ -121,21 +121,21 @@ class RoxPay_Webhook {
 	/**
 	 * Mark a payment as completed (idempotent).
 	 *
-	 * @param int    $entry_id
 	 * @param string $roxpay_txn_id
 	 * @param array  $webhook_data
+	 * @param int    $entry_id
 	 */
-	private function mark_completed( $entry_id, $roxpay_txn_id, $webhook_data ) {
-		if ( $this->already_completed( $entry_id ) ) {
-			error_log( '[RoxPay WPForms] Entry ' . $entry_id . ' already completed — skipped.' );
+	private function mark_completed( $roxpay_txn_id, $webhook_data, $entry_id ) {
+		if ( $this->already_completed( $roxpay_txn_id ) ) {
+			error_log( '[RoxPay WPForms] Txn ' . $roxpay_txn_id . ' already completed — skipped.' );
 			return;
 		}
 
 		// Update our DB record — this is the primary source of truth.
-		RoxPay_DB::update_status( $entry_id, 'completed', $roxpay_txn_id );
+		RoxPay_DB::update_status( $roxpay_txn_id, 'completed' );
 
-		// Also update WPForms PRO entry if available.
-		if ( function_exists( 'wpforms' ) && method_exists( wpforms()->entry_meta, 'add' ) ) {
+		// If this is a WPForms entry, update its meta too.
+		if ( $entry_id > 0 && function_exists( 'wpforms' ) && method_exists( wpforms()->entry_meta, 'add' ) ) {
 			wpforms()->entry_meta->add( [
 				'entry_id' => $entry_id,
 				'type'     => 'payment',
@@ -152,7 +152,7 @@ class RoxPay_Webhook {
 			}
 		}
 
-		error_log( '[RoxPay WPForms] Entry ' . $entry_id . ' marked completed. TxnId: ' . $roxpay_txn_id );
+		error_log( '[RoxPay WPForms] Txn ' . $roxpay_txn_id . ' marked completed. EntryId: ' . $entry_id );
 
 		/**
 		 * Fires after a RoxPay payment is confirmed completed.
@@ -167,13 +167,13 @@ class RoxPay_Webhook {
 	/**
 	 * Mark a payment as failed.
 	 *
-	 * @param int    $entry_id
 	 * @param string $roxpay_txn_id
+	 * @param int    $entry_id
 	 */
-	private function mark_failed( $entry_id, $roxpay_txn_id ) {
-		RoxPay_DB::update_status( $entry_id, 'failed', $roxpay_txn_id );
+	private function mark_failed( $roxpay_txn_id, $entry_id ) {
+		RoxPay_DB::update_status( $roxpay_txn_id, 'failed' );
 
-		if ( function_exists( 'wpforms' ) && method_exists( wpforms()->entry_meta, 'add' ) ) {
+		if ( $entry_id > 0 && function_exists( 'wpforms' ) && method_exists( wpforms()->entry_meta, 'add' ) ) {
 			wpforms()->entry_meta->add( [
 				'entry_id' => $entry_id,
 				'type'     => 'payment',
@@ -188,7 +188,7 @@ class RoxPay_Webhook {
 			}
 		}
 
-		error_log( '[RoxPay WPForms] Entry ' . $entry_id . ' marked failed. TxnId: ' . $roxpay_txn_id );
+		error_log( '[RoxPay WPForms] Txn ' . $roxpay_txn_id . ' marked failed. EntryId: ' . $entry_id );
 
 		/**
 		 * Fires after a RoxPay payment is confirmed failed.
@@ -202,11 +202,11 @@ class RoxPay_Webhook {
 	/**
 	 * Check our DB record to prevent duplicate processing.
 	 *
-	 * @param int $entry_id
+	 * @param string $roxpay_txn_id
 	 * @return bool
 	 */
-	private function already_completed( $entry_id ) {
-		$record = RoxPay_DB::get_by_entry( $entry_id );
+	private function already_completed( $roxpay_txn_id ) {
+		$record = RoxPay_DB::get_by_txn_id( $roxpay_txn_id );
 		return ( $record && $record['status'] === 'completed' );
 	}
 }

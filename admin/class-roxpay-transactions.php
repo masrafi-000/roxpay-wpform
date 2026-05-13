@@ -116,9 +116,17 @@ class RoxPay_Transactions {
 						</tr>
 					<?php else : ?>
 						<?php foreach ( $payments as $p ) :
-							$entry_url = admin_url( 'admin.php?page=wpforms-entries&view=details&entry_id=' . absint( $p['entry_id'] ) );
-							$form      = function_exists( 'wpforms' ) ? wpforms()->form->get( (int) $p['form_id'] ) : null;
-							$form_name = $form ? esc_html( $form->post_title ) : '#' . absint( $p['form_id'] );
+							$is_wpf    = ( absint( $p['entry_id'] ) > 0 );
+							$entry_url = $is_wpf ? admin_url( 'admin.php?page=wpforms-entries&view=details&entry_id=' . absint( $p['entry_id'] ) ) : '';
+							
+							$form_name = '—';
+							if ( $is_wpf && function_exists( 'wpforms' ) ) {
+								$form = wpforms()->form->get( (int) $p['form_id'] );
+								$form_name = $form ? esc_html( $form->post_title ) : '#' . absint( $p['form_id'] );
+							} else {
+								$form_name = '<em>' . esc_html__( 'Custom Form', 'roxpay-wpforms' ) . '</em>';
+							}
+
 							$amount    = (int) $p['amount'] > 0
 								? esc_html( $p['currency'] ) . ' ' . number_format( $p['amount'] / 100, 2 )
 								: '—';
@@ -126,8 +134,14 @@ class RoxPay_Transactions {
 						?>
 						<tr>
 							<td><?php echo absint( $p['id'] ); ?></td>
-							<td><a href="<?php echo esc_url( $entry_url ); ?>">#<?php echo absint( $p['entry_id'] ); ?></a></td>
-							<td><?php echo esc_html( $form_name ); ?></td>
+							<td>
+								<?php if ( $is_wpf ) : ?>
+									<a href="<?php echo esc_url( $entry_url ); ?>">#<?php echo absint( $p['entry_id'] ); ?></a>
+								<?php else : ?>
+									<span class="roxpay-muted"><?php esc_html_e( 'N/A', 'roxpay-wpforms' ); ?></span>
+								<?php endif; ?>
+							</td>
+							<td><?php echo $form_name; // phpcs:ignore ?></td>
 							<td><strong><?php echo esc_html( $amount ); ?></strong></td>
 							<td><?php echo ! empty( $p['transaction_id'] )
 								? '<code>' . esc_html( $p['transaction_id'] ) . '</code>'
