@@ -36,6 +36,16 @@ class RoxPay_Transactions {
 			'roxpay-payments',
 			[ $this, 'render_page' ]
 		);
+		
+		// Submenu: Booking Details (Hidden from sidebar by using empty title)
+		add_submenu_page(
+			'roxpay-payments',
+			esc_html__( 'Booking Details', 'roxpay-wpforms' ),
+			'', 
+			'manage_options',
+			'roxpay-booking-details',
+			[ $this, 'render_booking_details' ]
+		);
 	}
 
 	public function render_page() {
@@ -168,14 +178,9 @@ class RoxPay_Transactions {
 							<td><?php echo $this->status_badge( $p['status'] ); // phpcs:ignore ?></td>
 							<td><small><?php echo esc_html( $p['created_at'] ); ?></small></td>
 							<td>
-								<?php if ( ! empty( $snapshot ) ) : ?>
-									<button type="button" class="button button-small roxpay-view-snapshot"
-										data-snapshot="<?php echo esc_attr( wp_json_encode( $snapshot ) ); ?>">
-										<?php esc_html_e( 'View Fields', 'roxpay-wpforms' ); ?>
-									</button>
-								<?php else : ?>
-									<a href="<?php echo esc_url( $entry_url ); ?>" class="button button-small">
-										<?php esc_html_e( 'View Entry', 'roxpay-wpforms' ); ?>
+								<?php if ( ! empty( $snapshot ) || $is_wpf ) : ?>
+									<a href="<?php echo esc_url( admin_url( 'admin.php?page=roxpay-booking-details&id=' . absint( $p['id'] ) ) ); ?>" class="button button-small">
+										<?php esc_html_e( 'View Booking', 'roxpay-wpforms' ); ?>
 									</a>
 								<?php endif; ?>
 							</td>
@@ -213,44 +218,127 @@ class RoxPay_Transactions {
 
 		</div><!-- .roxpay-txn-wrap -->
 
-		<?php /* ── Field snapshot modal ── */ ?>
-		<div id="roxpay-snapshot-modal" style="display:none;">
-			<div id="roxpay-snapshot-overlay"></div>
-			<div id="roxpay-snapshot-dialog">
-				<h2><?php esc_html_e( 'Submitted Form Fields', 'roxpay-wpforms' ); ?></h2>
-				<table class="wp-list-table widefat striped" id="roxpay-snapshot-table"></table>
-				<p style="margin-top:14px;">
-					<button type="button" class="button button-primary" id="roxpay-snapshot-close">
-						<?php esc_html_e( 'Close', 'roxpay-wpforms' ); ?>
-					</button>
-				</p>
+		<?php
+	}
+
+	/**
+	 * Render the dedicated Booking Details page.
+	 */
+	public function render_booking_details() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'roxpay-wpforms' ) );
+		}
+
+		$id      = absint( $_GET['id'] ?? 0 );
+		$payment = RoxPay_DB::get_by_id( $id );
+
+		if ( ! $payment ) {
+			wp_die( esc_html__( 'Booking not found.', 'roxpay-wpforms' ) );
+		}
+
+		$amount   = $payment['currency'] . ' ' . number_format( $payment['amount'] / 100, 2 );
+		$snapshot = ! empty( $payment['form_snapshot'] ) ? json_decode( $payment['form_snapshot'], true ) : [];
+		$date     = date_i18n( 'M j, Y g:i A', strtotime( $payment['created_at'] ) );
+		$status   = ucfirst( $payment['status'] );
+		$source   = $payment['entry_id'] > 0 ? 'WPForms' : 'Digital Arrival Form';
+		?>
+		<div class="wrap roxpay-details-wrap">
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Booking Details', 'roxpay-wpforms' ); ?></h1>
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=roxpay-payments' ) ); ?>" class="page-title-action">
+				<?php esc_html_e( '‹ Back to All Payments', 'roxpay-wpforms' ); ?>
+			</a>
+			<hr class="wp-header-end">
+
+			<div style="margin-top:20px; display:grid; grid-template-columns: 1fr 300px; gap:20px; align-items: start;">
+				
+				<!-- Main Content: Form Data -->
+				<div class="postbox">
+					<div class="postbox-header">
+						<h2 class="hndle"><?php esc_html_e( 'Submitted Form Information', 'roxpay-wpforms' ); ?></h2>
+					</div>
+					<div class="inside" style="padding:0; margin:0;">
+						<table class="wp-list-table widefat striped" style="border:none; box-shadow:none;">
+							<thead>
+								<tr>
+									<th style="width:30%; padding:12px 15px;"><?php esc_html_e( 'Field Name', 'roxpay-wpforms' ); ?></th>
+									<th style="padding:12px 15px;"><?php esc_html_e( 'Value', 'roxpay-wpforms' ); ?></th>
+								</tr>
+							</thead>
+							<tbody>
+								<?php if ( ! empty( $snapshot ) && is_array( $snapshot ) ) : ?>
+									<?php foreach ( $snapshot as $field ) : ?>
+										<tr>
+											<td style="padding:12px 15px;"><strong><?php echo esc_html( $field['name'] ?? '—' ); ?></strong></td>
+											<td style="padding:12px 15px;">
+												<?php 
+												$val = $field['value'] ?? '—';
+												if ( ! empty( $field['is_image'] ) && strpos( $val, 'http' ) === 0 ) : ?>
+													<a href="<?php echo esc_url( $val ); ?>" target="_blank">
+														<img src="<?php echo esc_url( $val ); ?>" style="max-width:300px; max-height:400px; border-radius:8px; border:1px solid #ddd; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
+													</a>
+												<?php else : ?>
+													<?php echo nl2br( esc_html( $val ) ); ?>
+												<?php endif; ?>
+											</td>
+										</tr>
+									<?php endforeach; ?>
+								<?php else : ?>
+									<tr>
+										<td colspan="2" style="padding:20px; text-align:center; color:#666;">
+											<?php esc_html_e( 'No form data captured for this transaction.', 'roxpay-wpforms' ); ?>
+										</td>
+									</tr>
+								<?php endif; ?>
+							</tbody>
+						</table>
+					</div>
+				</div>
+
+				<!-- Sidebar: Payment Summary -->
+				<div class="roxpay-sidebar-meta">
+					<div class="postbox">
+						<div class="postbox-header"><h2 class="hndle"><?php esc_html_e( 'Payment Summary', 'roxpay-wpforms' ); ?></h2></div>
+						<div class="inside" style="padding:15px;">
+							<div style="margin-bottom:15px;">
+								<label style="font-size:11px; text-transform:uppercase; font-weight:bold; color:#666; display:block; margin-bottom:4px;"><?php esc_html_e( 'Total Amount', 'roxpay-wpforms' ); ?></label>
+								<span style="font-size:24px; font-weight:bold; color:#2271b1;"><?php echo esc_html( $amount ); ?></span>
+							</div>
+							
+							<div style="margin-bottom:15px; padding-top:15px; border-top:1px solid #eee;">
+								<label style="font-size:11px; text-transform:uppercase; font-weight:bold; color:#666; display:block; margin-bottom:4px;"><?php esc_html_e( 'Status', 'roxpay-wpforms' ); ?></label>
+								<?php echo $this->status_badge( $payment['status'] ); // phpcs:ignore ?>
+							</div>
+
+							<div style="margin-bottom:15px; padding-top:15px; border-top:1px solid #eee;">
+								<label style="font-size:11px; text-transform:uppercase; font-weight:bold; color:#666; display:block; margin-bottom:4px;"><?php esc_html_e( 'Transaction ID', 'roxpay-wpforms' ); ?></label>
+								<code style="word-break:break-all; font-size:12px;"><?php echo esc_html( $payment['transaction_id'] ?: '—' ); ?></code>
+							</div>
+
+							<div style="margin-bottom:15px; padding-top:15px; border-top:1px solid #eee;">
+								<label style="font-size:11px; text-transform:uppercase; font-weight:bold; color:#666; display:block; margin-bottom:4px;"><?php esc_html_e( 'Internal Reference', 'roxpay-wpforms' ); ?></label>
+								<span style="font-size:12px;"><?php echo esc_html( $payment['internal_txn_id'] ); ?></span>
+							</div>
+
+							<div style="margin-bottom:0; padding-top:15px; border-top:1px solid #eee;">
+								<label style="font-size:11px; text-transform:uppercase; font-weight:bold; color:#666; display:block; margin-bottom:4px;"><?php esc_html_e( 'Source', 'roxpay-wpforms' ); ?></label>
+								<span class="roxpay-badge" style="background:#f0f0f1; color:#2c3338; border:1px solid #c3c4c7;"><?php echo esc_html( $source ); ?></span>
+							</div>
+						</div>
+					</div>
+
+					<div class="postbox">
+						<div class="postbox-header"><h2 class="hndle"><?php esc_html_e( 'Timeline', 'roxpay-wpforms' ); ?></h2></div>
+						<div class="inside" style="padding:15px; font-size:12px; color:#555;">
+							<p><strong><?php esc_html_e( 'Created:', 'roxpay-wpforms' ); ?></strong><br><?php echo esc_html( $date ); ?></p>
+							<?php if ( $payment['updated_at'] !== $payment['created_at'] ) : ?>
+								<p><strong><?php esc_html_e( 'Last Updated:', 'roxpay-wpforms' ); ?></strong><br><?php echo esc_html( date_i18n( 'M j, Y g:i A', strtotime( $payment['updated_at'] ) ) ); ?></p>
+							<?php endif; ?>
+						</div>
+					</div>
+				</div>
+
 			</div>
 		</div>
-
-		<script>
-		(function($){
-			$('.roxpay-view-snapshot').on('click', function(){
-				var raw = $(this).data('snapshot');
-				var fields = (typeof raw === 'string') ? (function(){ try{ return JSON.parse(raw); }catch(e){ return []; } })() : raw;
-				var html = '<thead><tr><th><?php esc_html_e( 'Field', 'roxpay-wpforms' ); ?></th><th><?php esc_html_e( 'Value', 'roxpay-wpforms' ); ?></th></tr></thead><tbody>';
-				if (Array.isArray(fields)) {
-					$.each(fields, function(i, f){
-						html += '<tr><td><strong>' + $('<span>').text(f.name||'').html() + '</strong></td><td>' + $('<span>').text(f.value||'—').html() + '</td></tr>';
-					});
-				} else {
-					$.each(fields, function(k, v){
-						html += '<tr><td><strong>' + $('<span>').text(k).html() + '</strong></td><td>' + $('<span>').text(v||'—').html() + '</td></tr>';
-					});
-				}
-				html += '</tbody>';
-				$('#roxpay-snapshot-table').html(html);
-				$('#roxpay-snapshot-modal').show();
-			});
-			$('#roxpay-snapshot-close, #roxpay-snapshot-overlay').on('click', function(){
-				$('#roxpay-snapshot-modal').hide();
-			});
-		}(jQuery));
-		</script>
 		<?php
 	}
 

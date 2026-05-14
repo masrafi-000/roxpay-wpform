@@ -140,6 +140,20 @@ class RoxPay_DB {
 	}
 
 	/**
+	 * Get a single record by its internal ID.
+	 *
+	 * @param int $id
+	 * @return array|null
+	 */
+	public static function get_by_id( $id ) {
+		global $wpdb;
+		return $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM " . self::table() . " WHERE id = %d", absint( $id ) ),
+			ARRAY_A
+		);
+	}
+
+	/**
 	 * Get a single record by WPForms entry ID.
 	 *
 	 * @param int $entry_id

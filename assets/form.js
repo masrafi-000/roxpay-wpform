@@ -156,9 +156,13 @@ document.addEventListener('DOMContentLoaded', function() {
             // Basic fields
             const inputs = wrapper.querySelectorAll('input, select, textarea');
             inputs.forEach(input => {
-                if (input.type === 'radio' || input.type === 'checkbox') {
+                if (input.type === 'file') {
+                    if (input.files[0]) {
+                        formData.append(input.name, input.files[0]);
+                    }
+                } else if (input.type === 'radio' || input.type === 'checkbox') {
                     if (input.checked) formData.append(input.name, input.value);
-                } else if (input.type !== 'file') {
+                } else {
                     formData.append(input.name, input.value);
                 }
             });

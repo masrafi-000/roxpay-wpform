@@ -3,7 +3,7 @@
  * Plugin Name: RoxPay for WPForms
  * Plugin URI:  https://travelservice-thailand.com
  * Description: Integrates RoxPay payment gateway with WPForms.
- * Version:     1.1.0
+ * Version:     1.1.1
  * Author:      Blue Buff GmbH
  * Text Domain: roxpay-wpforms
  * Domain Path: /languages
@@ -11,7 +11,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'ROXPAY_WPFORMS_VERSION', '1.1.0' );
+define( 'ROXPAY_WPFORMS_VERSION', '1.1.1' );
 define( 'ROXPAY_WPFORMS_DIR',     plugin_dir_path( __FILE__ ) );
 define( 'ROXPAY_WPFORMS_URL',     plugin_dir_url( __FILE__ ) );
 
@@ -199,6 +199,23 @@ function tdaf_handle_form_submission() {
                 $num = $i + 2;
                 $t_name = sanitize_text_field( ($t['first_name'] ?? '') . ' ' . ($t['last_name'] ?? '') );
                 $snapshot[] = [ 'name' => "Traveler $num", 'value' => "$t_name (Passport: " . sanitize_text_field($t['passport'] ?? '—') . ")" ];
+            }
+        }
+
+        // Handle File Upload (Passport Image)
+        error_log( '[RoxPay Debug] Files received: ' . print_r( $_FILES, true ) );
+        if ( ! empty( $_FILES['passport_image']['name'] ) ) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+            $uploaded_file = wp_handle_upload( $_FILES['passport_image'], [ 'test_form' => false ] );
+            error_log( '[RoxPay Debug] Upload Result: ' . print_r( $uploaded_file, true ) );
+            if ( $uploaded_file && ! isset( $uploaded_file['error'] ) ) {
+                $snapshot[] = [
+                    'name'     => 'Passport Image',
+                    'value'    => esc_url_raw( $uploaded_file['url'] ),
+                    'is_image' => true
+                ];
+            } else {
+                $snapshot[] = [ 'name' => 'Passport Image', 'value' => 'Upload failed: ' . sanitize_text_field( $uploaded_file['error'] ?? 'Unknown error' ) ];
             }
         }
 
