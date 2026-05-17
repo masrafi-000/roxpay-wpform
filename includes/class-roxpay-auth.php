@@ -46,6 +46,10 @@ class RoxPay_Auth {
 	 * @return string
 	 */
 	public function get_base_url() {
+		$mode = $this->settings['api_mode'] ?? 'production';
+		if ( $mode === 'sandbox' ) {
+			return 'https://sandbox.roxpay.eu/api/v4';
+		}
 		return 'https://app.roxpay.eu/api/v4';
 	}
 

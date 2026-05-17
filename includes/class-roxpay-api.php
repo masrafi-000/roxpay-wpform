@@ -183,7 +183,8 @@ class RoxPay_API {
 
 		if ( empty( $data['PaymentUrl'] ) ) {
 			error_log( '[RoxPay WPForms] create_payment_link: PaymentUrl missing. Response: ' . wp_json_encode( $data ) );
-			return new WP_Error( 'roxpay_no_url', esc_html__( 'No payment URL returned by RoxPay.', 'roxpay-wpforms' ) );
+			$msg = ! empty( $data['Message'] ) ? $data['Message'] : __( 'No payment URL returned by RoxPay.', 'roxpay-wpforms' );
+			return new WP_Error( 'roxpay_no_url', esc_html( $msg ) );
 		}
 
 		return $data;

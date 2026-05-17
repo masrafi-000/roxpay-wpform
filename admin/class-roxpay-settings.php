@@ -86,6 +86,16 @@ class RoxPay_Settings {
 
 				<table class="form-table" role="presentation">
 					<tr>
+						<th><?php esc_html_e( 'API Mode', 'roxpay-wpforms' ); ?></th>
+						<td>
+							<select name="roxpay_settings[api_mode]" id="roxpay_api_mode">
+								<option value="production" <?php selected( $settings['api_mode'] ?? 'production', 'production' ); ?>><?php esc_html_e( 'Production', 'roxpay-wpforms' ); ?></option>
+								<option value="sandbox" <?php selected( $settings['api_mode'] ?? 'production', 'sandbox' ); ?>><?php esc_html_e( 'Sandbox', 'roxpay-wpforms' ); ?></option>
+							</select>
+							<p class="description"><?php esc_html_e( 'Select whether to use the Sandbox or Production environment.', 'roxpay-wpforms' ); ?></p>
+						</td>
+					</tr>
+					<tr>
 						<th><?php esc_html_e( 'Username', 'roxpay-wpforms' ); ?></th>
 						<td>
 							<input type="text" id="roxpay_username" name="roxpay_settings[username_plain]"
@@ -329,6 +339,14 @@ class RoxPay_Settings {
 		if ( isset( $posted['password_plain'] ) ) {
 			$new['password'] = base64_encode( sanitize_text_field( $posted['password_plain'] ) );
 			RoxPay_Auth::invalidate_token();
+		}
+
+		// API Mode
+		if ( isset( $posted['api_mode'] ) ) {
+			if ( ( $current['api_mode'] ?? '' ) !== $posted['api_mode'] ) {
+				RoxPay_Auth::invalidate_token();
+			}
+			$new['api_mode'] = in_array( $posted['api_mode'], [ 'sandbox', 'production' ], true ) ? $posted['api_mode'] : 'production';
 		}
 
 		// Redirect URLs.
